@@ -1,0 +1,5 @@
+Django==3.2.1
+transformers
+torch
+textblob
+nltk
