@@ -113,28 +113,56 @@ def chat():
 
 # chat()
 
-
-from rest_framework.views import APIView
+import requests
 from django.http import JsonResponse
+from rest_framework.views import APIView
 
-class PostFaq(APIView):
+class PostQuery(APIView):
     
     def post(self, request):
         data = request.data
-        print("These is the data",data['query'])
-        # return JsonResponse({"mssg":"success"})
+        print("This is the data", data['query'])
+        
         try:
             user_input = data['query']
             if user_input.lower() == 'quit':
                 print(chatbot.respond(user_input))
-                # break
             else:
-            
                 response = get_response(user_input)
                 sentiment = get_sentiment(response)
                 print(response)
                 print(f"Sentiment: {sentiment}")
-                return JsonResponse({"response":sentiment})
+                
+                # Prepare data to post to the API
+                api_data = {
+                    "user_input": user_input,
+                    "response": response,
+                    "sentiments": sentiment
+                }
+                headers = {
+                    'auth-token': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjp7ImlkIjoiNjVjZmM2MDMwNjZlMjIwNjZlN2ZjOGRlIn0sImlhdCI6MTcwODExNjM0NX0.DnzbQIqxXVVhzZU741LFUXD33UpEBxAt6lbgAPRHCwM',
+                    'Content-Type': 'application/json',
+                }
+
+                api_url = "https://telehealth.cyclic.app/api/sentiments/postsentiments"
+                api_response = requests.post(api_url, json=api_data, headers=headers)
+
+                
+                # Post data to the API
+                # api_response = requests.post(api_url, json=api_data)
+                
+                # Check if the response is successful and in JSON format
+                if api_response.status_code == 200:
+                    try:
+                        api_response_data = api_response.json()
+                        return JsonResponse(api_response_data, safe=False)
+                    except ValueError:
+                        return JsonResponse({"message": "Error occurred while parsing API response."})
+                else:
+                    return JsonResponse({"message": "Error occurred while processing the request."})
+                
         except Exception as e:
             print("Error: ", str(e))
-            return JsonResponse({"mssg":"success"})
+            return JsonResponse({"message": "Error occurred while processing the request."})
+
+        # http://localhost:5000/api/sentiments/fetchmysentiments
