@@ -1,4 +1,10 @@
 from django.shortcuts import HttpResponse
+from dotenv import load_dotenv
+import os
+import google.generativeai as genai
+import requests
+from django.http import JsonResponse
+from rest_framework.views import APIView
 
 # Create your views here.
 def home(request):
@@ -18,14 +24,9 @@ Original file is located at
     https://colab.research.google.com/drive/1rWqZ5lD-obn1HMR7nIg5yRFHpf6zI5v3
 """
 
-# pip install transformers
-# pip install torch
-# pip install textblob
-# pip install nltk
-
 import nltk
 from nltk.chat.util import Chat, reflections
-nltk.download('punkt')
+# nltk.download('punkt')
 pairs = [
     [
         r"hi|hey|hello",
@@ -94,28 +95,7 @@ def get_response(input_text):
     elif sentiment == "very positive":
         return "I'm glad to hear that you're doing well! Is there anything you'd like to talk about?"
 
-def chat():
-    # print("Hi, I'm MindFlow Bot. How can I help you today?")
-    # while True:
-    #     try:
-    #         user_input = input("> ")
-    #         if user_input.lower() == 'quit':
-    #             print(chatbot.respond(user_input))
-    #             break
-    #         else:
-    #             response = get_response(user_input)
-    #             sentiment = get_sentiment(response)
-    #             print(response)
-    #             print(f"Sentiment: {sentiment}")
-    #     except Exception as e:
-    #         print("Error: ", str(e))
-    print("soham")
 
-# chat()
-
-import requests
-from django.http import JsonResponse
-from rest_framework.views import APIView
 
 class PostQuery(APIView):
     
@@ -133,7 +113,6 @@ class PostQuery(APIView):
                 print(response)
                 print(f"Sentiment: {sentiment}")
                 
-                # Prepare data to post to the API
                 api_data = {
                     "user_input": user_input,
                     "response": response,
@@ -147,11 +126,7 @@ class PostQuery(APIView):
                 api_url = "https://telehealth.cyclic.app/api/sentiments/postsentiments"
                 api_response = requests.post(api_url, json=api_data, headers=headers)
 
-                
-                # Post data to the API
-                # api_response = requests.post(api_url, json=api_data)
-                
-                # Check if the response is successful and in JSON format
+            
                 if api_response.status_code == 200:
                     try:
                         api_response_data = api_response.json()
@@ -165,4 +140,60 @@ class PostQuery(APIView):
             print("Error: ", str(e))
             return JsonResponse({"message": "Error occurred while processing the request."})
 
-        # http://localhost:5000/api/sentiments/fetchmysentiments
+
+load_dotenv()
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+
+def get_gemini_response(input_text):
+    model = genai.GenerativeModel('gemini-pro')
+    response = model.generate_content([input_text])
+
+    # Format response into paragraphs without highlighting keywords
+    formatted_response = ""
+    current_paragraph = ""
+    paragraphs = response.text.split("\n\n")  # Split response into paragraphs
+    word_count = 0
+    for paragraph in paragraphs:
+        # Add paragraph if it doesn't exceed 250 words
+        if word_count + len(paragraph.split()) <= 250:
+            current_paragraph += f"{paragraph} "
+            word_count += len(paragraph.split())
+        else:
+            formatted_response += f"{current_paragraph}\n\n"
+            current_paragraph = f"{paragraph} "
+            word_count = len(paragraph.split())
+
+    # Add the last paragraph if not added already
+    if current_paragraph:
+        formatted_response += f"{current_paragraph}\n\n"
+
+    return formatted_response
+
+
+def detect_mental_health_related(input_text):
+    mental_health_keywords = ["anxiety", "depression", "stress", "mental health", "therapy", "counseling",
+                              "psychologist", "psychiatrist", "emotion", "feel", "sad", "lonely", "help", "support"]
+    for keyword in mental_health_keywords:
+        if keyword in input_text.lower():
+            return True
+    return False
+
+class PostQuestion(APIView):
+    def post(self, request):
+        data = request.data
+
+        user_input = data['question']
+
+        if user_input:
+            if detect_mental_health_related(user_input):
+                response = get_gemini_response(user_input)
+                return JsonResponse({'response':response})
+            else:
+                # print("\nResponse from Virtual Psychologist:")
+             
+                return JsonResponse({'response':"It seems like you're talking about something outside my scope. My expertise lies in providing support for mental health. If you need assistance with that, feel free to share."})
+        else:
+            print("Please share how you're feeling.")
+
+
+# psychological_support_bot()
