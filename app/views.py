@@ -26,7 +26,7 @@ Original file is located at
 
 import nltk
 from nltk.chat.util import Chat, reflections
-# nltk.download('punkt')
+nltk.download('punkt')
 pairs = [
     [
         r"hi|hey|hello",
